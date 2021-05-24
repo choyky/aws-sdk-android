@@ -73,7 +73,7 @@ public class NativeKinesisVideoProducerJni implements KinesisVideoProducer {
     /**
      * The expected library version.
      */
-    private static final String EXPECTED_LIBRARY_VERSION = "1.8";
+    private static final String EXPECTED_LIBRARY_VERSION = "1.9";
 
     /**
      * The manifest handle will be set after call to parse()
