@@ -28,6 +28,7 @@ import com.amazonaws.kinesisvideo.auth.KinesisVideoCredentials;
 import com.amazonaws.kinesisvideo.common.exception.KinesisVideoException;
 import com.amazonaws.kinesisvideo.common.logging.Log;
 import com.amazonaws.kinesisvideo.common.preconditions.Preconditions;
+import com.amazonaws.mobile.client.AWSMobileClient;
 
 import java.util.Date;
 
@@ -66,6 +67,12 @@ public class KinesisVideoCredentialsProviderImpl extends AbstractKinesisVideoCre
                     (CognitoCredentialsProvider) credentialsProvider;
 
             expiration = cognitoCredentialsProvider.getSessionCredentialsExpiration();
+            log.debug("Refreshed token expiration is %s", expiration);
+        } else if (credentialsProvider instanceof AWSMobileClient) {
+            final AWSMobileClient awsMobileClient =
+                    (AWSMobileClient) credentialsProvider;
+
+            expiration = awsMobileClient.getCredentialsExpiration();
             log.debug("Refreshed token expiration is %s", expiration);
         }
 

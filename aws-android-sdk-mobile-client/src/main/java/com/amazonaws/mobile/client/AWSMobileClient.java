@@ -116,6 +116,7 @@ import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -382,8 +383,21 @@ public final class AWSMobileClient implements AWSCredentialsProvider {
         }
     }
 
+    public Date getCredentialsExpiration() {
+        if (isLegacyMode()) {
+            return IdentityManager.getDefaultIdentityManager().getUnderlyingProvider().getSessionCredentialsExpiration();
+        }
+        return cognitoIdentity.getSessionCredentialsExpiration();
+    }
+
     @Override
     public void refresh() {
+        UserStateDetails userStateDetails = currentUserState();
+        UserState userState = userStateDetails.getUserState();
+        if (userState != UserState.GUEST && userState != UserState.SIGNED_IN) {
+            Log.w(TAG, "refresh: Trying to refresh credentials in unexpected user state.");
+        }
+
         if (isLegacyMode()) {
             IdentityManager.getDefaultIdentityManager().getCredentialsProvider().refresh();
             return;
