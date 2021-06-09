@@ -21,6 +21,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
+import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
@@ -29,15 +30,20 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.Looper;
 import android.util.Log;
+import android.util.Range;
 import android.view.Surface;
 
+import com.amazonaws.kinesisvideo.client.mediasource.CameraMediaSourceConfiguration;
 import com.amazonaws.kinesisvideo.common.exception.KinesisVideoException;
 import com.amazonaws.mobileconnectors.kinesisvideo.mediasource.android.AndroidCameraMediaSource;
 import com.amazonaws.mobileconnectors.kinesisvideo.mediasource.android.AndroidCameraMediaSource.OpenCameraCallback;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+
+import static com.amazonaws.mobileconnectors.kinesisvideo.util.CameraHardwareCapabilitiesHelper.getCameraInfo;
 
 public class CameraAdapter {
     private static final String TAG = "CameraAdapter";
@@ -52,13 +58,55 @@ public class CameraAdapter {
 
     private String mCameraId;
 
+    private Range<Integer> mSelectedFpsRange;
+
     private Handler mBackgroundHandler;
 
     private CameraCaptureSession mActivePreviewSession;
 
-    public CameraAdapter(final Context context, final String cameraId) {
+    public CameraAdapter(final Context context, final String cameraId, CameraMediaSourceConfiguration mediaSourceConfiguration) {
         mContext = context;
         mCameraId = cameraId;
+
+        int requestedFps = mediaSourceConfiguration.getFrameRate();
+        selectFpsClosestToRequested(context, cameraId, requestedFps);
+    }
+
+    private void selectFpsClosestToRequested(Context context, String cameraId, int requestedFps) {
+        CameraCharacteristics characteristics = getCameraInfo(context, cameraId);
+        Range<Integer>[] supportedFpsRanges = characteristics.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES);
+        Log.i(TAG, "Camera Id: " + cameraId +
+                " Supported FpsRanges: " + Arrays.toString(supportedFpsRanges));
+        Log.i(TAG, "Requested FPS: " + requestedFps);
+
+        int minFpsDiff = 99999;
+        for (Range<Integer> range : supportedFpsRanges) {
+            int lower = range.getLower();
+            int upper = range.getUpper();
+            if (lower == upper) {
+                if (Math.abs(lower - requestedFps) < minFpsDiff) {
+                    minFpsDiff = Math.abs(lower - requestedFps);
+                    mSelectedFpsRange = range;
+                }
+            }
+        }
+
+        if (mSelectedFpsRange == null) {
+            for (Range<Integer> range : supportedFpsRanges) {
+                int lower = range.getLower();
+                int upper = range.getUpper();
+                if (requestedFps >= lower && requestedFps <= upper) {
+                    mSelectedFpsRange = range;
+                    break;
+                }
+            }
+        }
+
+        if (mSelectedFpsRange != null) {
+            Log.i(TAG, "Selected FPS: " + mSelectedFpsRange);
+        } else {
+            Log.w(TAG, "Couldn't find matching FPS, using camera's default");
+        }
     }
 
     public void openCamera(final OpenCameraCallback cameraOpenCameraCallback) {
@@ -234,6 +282,10 @@ public class CameraAdapter {
             previewRequestBuilder.set(
                     CaptureRequest.CONTROL_MODE,
                     CameraMetadata.CONTROL_MODE_AUTO);
+
+            if (mSelectedFpsRange != null) {
+                previewRequestBuilder.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, mSelectedFpsRange);
+            }
 
             mActivePreviewSession.setRepeatingRequest(
                     previewRequestBuilder.build(),

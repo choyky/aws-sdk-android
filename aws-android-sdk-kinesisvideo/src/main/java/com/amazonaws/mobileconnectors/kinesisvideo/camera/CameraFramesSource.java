@@ -168,7 +168,7 @@ public class CameraFramesSource {
             throw new RuntimeException("starting camera frames source second time");
         }
 
-        mCameraAdapter = new CameraAdapter(context, cameraId);
+        mCameraAdapter = new CameraAdapter(context, cameraId, mMediaSourceConfiguration);
         Log.i(TAG, "camera adapter");
 
         mCameraAdapter.openCamera(startPreviewWhenReady(cameraOutputSurfaces));
