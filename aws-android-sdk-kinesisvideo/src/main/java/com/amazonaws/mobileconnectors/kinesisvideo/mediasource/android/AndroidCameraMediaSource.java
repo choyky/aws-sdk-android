@@ -264,6 +264,8 @@ public class AndroidCameraMediaSource implements MediaSource {
                 try {
                     Log.i(TAG, "updating sink with frame");
                     mMediaSourceSink.onFrame(frame);
+                    mMediaSourceSink.onFragmentMetadata("ANDROID_ORIENTATION",
+                            Integer.toString(mMediaSourceConfiguration.getCameraOrientation()), true);
                 } catch (final KinesisVideoException e) {
                     Log.e(TAG, "error updating sink with frame", e);
                 }
